@@ -20,7 +20,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # secrets key 분리
 secret_file = os.path.join(BASE_DIR, 'secrets.json') 
 
-with open(secret_file) as f:
+with open(secret_file, encoding="utf-8") as f:
     secrets = json.loads(f.read())
 
 def get_secret(setting, secrets=secrets): 

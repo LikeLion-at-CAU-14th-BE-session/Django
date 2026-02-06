@@ -134,3 +134,65 @@ def post_detail(request, post_id):
             'message' : '게시글 삭제 성공',
             'data' : None
         })
+    
+#----------------댓글----------------#
+@require_http_methods(["POST"])
+def comment_list(request):
+    
+    if request.method == "POST":
+
+        body = json.loads(request.body.decode('utf-8'))
+        user_id = body.get('user')
+        user = get_object_or_404(User, pk=user_id)
+
+        post_id = body.get('post')
+        post = get_object_or_404(Post, pk=post_id)
+
+        new_comment = Comment.objects.create(
+            post = post,
+            author_name = user.username,
+            content = body['content'],
+        )
+
+        new_comment_json = {
+            "id" : new_comment.id,
+            "post" : new_comment.post.id,
+            "author_name" : new_comment.author_name,
+            "content" : new_comment.content
+        }
+
+        return JsonResponse({
+            'status' : 200,
+            'message' : '댓글 생성 성공',
+            'data' : new_comment_json
+        })
+
+@require_http_methods(["GET"])
+def comments_in_posts(request,post_id):
+    
+    if request.method == "GET":
+
+        if not post_id:
+            return JsonResponse({
+                "status": 400,
+                "message": "post_id 쿼리 파라미터가 필요합니다."
+            }, status=400)
+
+        # 2. 필터링 후 댓글 조회
+        comment_all = Comment.objects.filter(post_id=post_id)
+
+        # 3. JSON 변환
+        comment_all_json = []
+        for comment in comment_all:
+            comment_json = {
+                "id" : comment.id,
+                "author": comment.author_name,
+                "content": comment.content,
+            }
+            comment_all_json.append(comment_json)
+
+        return JsonResponse({
+            'status': 200,
+            'message': '해당 게시글 전체 댓글 조회 성공',
+            'data': comment_all_json
+        })

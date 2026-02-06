@@ -26,3 +26,13 @@ class Post(BaseModel): # BaseModel을 상속받음
 
     def __str__(self):
         return self.title
+    
+# 댓글 모델 추가
+class Comment(BaseModel):
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name = "comments") #post와 연결
+    author_name = models.CharField(max_length = 100)
+    content = models.TextField()
+
+    def __str__(self):
+        return f"{self.author_name} : {self.content[:20]} (작성시간 : {self.created_at}) (수정시간 : {self.updated_at})"
+  

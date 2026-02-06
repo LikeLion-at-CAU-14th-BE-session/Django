@@ -79,7 +79,7 @@ def post_list(request):
         })
 
 # 게시글 단일조회(GET), 수정(PATCH) 로직
-@require_http_methods(["GET"])
+@require_http_methods(["GET","PATCH"])
 def post_detail(request, post_id):
     
     if request.method == "GET":
@@ -96,3 +96,31 @@ def post_detail(request, post_id):
             "status" : 200,
             'message' : '게시글 단일 조회 성공',
             "data": post_json_detail})
+    
+    if request.method == "PATCH":
+        body = json.loads(request.body.decode('utf-8'))
+
+        post_update = get_object_or_404(Post, pk=post_id)
+
+        if 'title' in body:
+            post_update.title = body['title']
+        if 'content' in body:
+            post_update.content = body['content']
+        if 'status' in body:
+            post_update.status = body['status']
+        
+        post_update.save()
+
+        post_update_json = {
+            "id" : post_update.id,
+            "title" : post_update.title,
+            "content" : post_update.content,
+            "status" : post_update.status,
+            "writer" : post_update.writer.username
+        }
+
+        return JsonResponse({
+            'status': 200,
+            'message' : '게시글 수정 성공',
+            'data' : post_update_json
+        })

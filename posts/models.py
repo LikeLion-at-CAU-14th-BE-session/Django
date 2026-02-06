@@ -35,4 +35,19 @@ class Comment(BaseModel):
 
     def __str__(self):
         return f"{self.author_name} : {self.content[:20]} (작성시간 : {self.created_at}) (수정시간 : {self.updated_at})"
-  
+
+# 카테고리 모델 추가
+class Category(BaseModel):
+    id = models.AutoField(primary_key = True)
+    title = models.CharField(max_length = 30)
+
+    def __str__(self):
+        return self.title
+
+# 카테고리와 게시글 연결
+class CategoryLink(BaseModel):
+    post = models.ForeignKey('posts.Post', on_delete=models.CASCADE, related_name = "categorylink")
+    category = models.ForeignKey(Category, on_delete = models.CASCADE, related_name = "categorylink", null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.post.title} - {self.category.title}"

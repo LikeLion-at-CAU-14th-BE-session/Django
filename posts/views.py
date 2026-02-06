@@ -134,6 +134,87 @@ def post_detail(request, post_id):
             'message' : '게시글 삭제 성공',
             'data' : None
         })
+
+#--------------카테고리--------------#
+# 카테고리 생성
+@require_http_methods(["POST"])
+def category_list(request):
+
+    if request.method == "POST":
+        body = json.loads(request.body.decode('utf-8'))
+
+        new_category = Category.objects.create(
+            title = body['title']
+        )
+
+        new_category_json = {
+            "id" : new_category.id,
+            "title" : new_category.title
+        }
+
+        return JsonResponse({
+            'status' : 200,
+            'message' : '카테고리 생성 성공',
+            'data' : new_category_json
+        })
+
+# 게시글 카테고리 추가(연결)
+@require_http_methods(["POST"])
+def categoryLink_list(request):
+
+    if request.method == "POST":
+        body = json.loads(request.body.decode('utf-8'))
+
+        post_id = body['post_id']
+        post = get_object_or_404(Post, pk=post_id)
+
+        category_id = body['category_id']
+        category = get_object_or_404(Category, pk=category_id)
+
+        new_categoryLink = CategoryLink.objects.create(
+            post = post,
+            category = category
+        )
+
+        new_categoryLink_json = {
+            "post" : new_categoryLink.post.title,
+            "category" : new_categoryLink.category.title
+        }
+
+        return JsonResponse({
+            'status' : 200,
+            'message' : '카테고리-게시글 연결 생성 성공',
+            'data' : new_categoryLink_json
+        })
+
+# 카테고리 별 게시글
+@require_http_methods(["GET"])
+def posts_in_category(request, category_id):
+
+    if not category_id:
+        return JsonResponse({
+            "status": 400,
+            "message": "category_id 쿼리 파라미터가 필요합니다."
+        }, status=400)
+    
+    post_in_category_all = CategoryLink.objects.filter(category_id = category_id).order_by('created_at')
+
+    post_in_category_all_json = []
+    for post_in_category in post_in_category_all:
+        post_in_category_json = {
+            "post_id" : post_in_category.post.id,
+            "title" : post_in_category.post.title,
+            "content" : post_in_category.post.content
+        }
+        post_in_category_all_json.append(post_in_category_json)
+    
+    return JsonResponse({
+        'status' : 200,
+        'message' : '해당 카테고리 전체 게시글 조회 성공',
+        'data' : post_in_category_all_json
+    })
+
+
     
 #----------------댓글----------------#
 @require_http_methods(["POST"])

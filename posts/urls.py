@@ -11,5 +11,8 @@ urlpatterns = [
     path('<int:post_id>/', post_detail, name = "post_detail"), # Post 단일조회, 수정, 삭제
 
     path('comment/', comment_list, name = "comment_list"), # Comment 생성
-    path('<int:post_id>/comment/', comments_in_posts, name = "comments_in_posts") # 게시글 별 Comment 조회
+    path('<int:post_id>/comment/', comments_in_posts, name = "comments_in_posts"), # post 별 Comment 조회
+
+    path('category/<int:category_id>/', posts_in_category, name = "posts_in_category") # category 별 post 조회
+
 ]

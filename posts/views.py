@@ -18,7 +18,7 @@ def index(request):
     return render(request, 'index.html')
 
 # 게시글을 Post(Create), Get(Read) 하는 뷰 로직
-@require_http_methods(["POST"])   #함수 데코레이터, 특정 http method 만 허용합니다
+@require_http_methods(["POST", "GET"])   #함수 데코레이터, 특정 http method 만 허용합니다
 def post_list(request):
 
     if request.method == "POST":
@@ -46,7 +46,7 @@ def post_list(request):
             "title" : new_post.title,
             "content" : new_post.content,
             "status" : new_post.status,
-            "writer" : new_post.writer.id
+            "writer" : new_post.writer.username
         }
 
         return JsonResponse({
@@ -54,13 +54,37 @@ def post_list(request):
             'message' : '게시글 생성 성공',
             'data' : new_post_json
         })
+    
+    # 게시글 전체 조회
+    if request.method == "GET":
+        post_all = Post.objects.all()
+
+        # 각 데이터를 Json 형식으로 변환하여 리스트에 저장 (여러개의 게시글 내용을 담을 거라 리스트를 이용합니다)
+        post_json_all = []
+
+        for post in post_all:
+            post_json = {
+                "id" : post.id,
+                "title" : post.title,
+                "content" : post.content,
+                "status" : post.status,
+                "writer" : post.writer.username
+            }
+            post_json_all.append(post_json)
+
+        return JsonResponse({
+            'status' : 200,
+            'message' : '게시글 목록 조회 성공',
+            'data' : post_json_all
+        })
 
 
 # Create your views here.
 @require_http_methods(["GET"])
-def get_post_detail(reqeust, id):
-    post = get_object_or_404(Post, pk=id)
-    post_detail_json = {
+def post_detail(request, post_id):
+    post = get_object_or_404(Post, pk=post_id) # post_id 에 해당하는 Post 데이터 가져오기
+    
+    post_json_detail = {
         "id" : post.id,
         "title" : post.title,
         "content" : post.content,
@@ -69,4 +93,5 @@ def get_post_detail(reqeust, id):
     }
     return JsonResponse({
         "status" : 200,
-        "data": post_detail_json})
+        'message' : '게시글 단일 조회 성공',
+        "data": post_json_detail})

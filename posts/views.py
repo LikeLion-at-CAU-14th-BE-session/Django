@@ -78,8 +78,8 @@ def post_list(request):
             'data' : post_all_json
         })
 
-# 게시글 단일조회(GET), 수정(PATCH) 로직
-@require_http_methods(["GET","PATCH"])
+# 게시글 단일조회(GET), 수정(PATCH), 삭제(DELETE) 로직
+@require_http_methods(["GET","PATCH","DELETE"])
 def post_detail(request, post_id):
     
     if request.method == "GET":
@@ -123,4 +123,14 @@ def post_detail(request, post_id):
             'status': 200,
             'message' : '게시글 수정 성공',
             'data' : post_update_json
+        })
+    
+    if request.method == "DELETE":
+        post_delete = get_object_or_404(Post, pk=post_id)
+        post_delete.delete()
+
+        return JsonResponse({
+            'status' : 200,
+            'message' : '게시글 삭제 성공',
+            'data' : None
         })

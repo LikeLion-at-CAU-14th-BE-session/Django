@@ -78,20 +78,21 @@ def post_list(request):
             'data' : post_json_all
         })
 
-
-# Create your views here.
+# 게시글 단일조회(GET), 수정(PATCH) 로직
 @require_http_methods(["GET"])
 def post_detail(request, post_id):
-    post = get_object_or_404(Post, pk=post_id) # post_id 에 해당하는 Post 데이터 가져오기
     
-    post_json_detail = {
-        "id" : post.id,
-        "title" : post.title,
-        "content" : post.content,
-        "status" : post.status,
-        "writer" : post.writer.username
-    }
-    return JsonResponse({
-        "status" : 200,
-        'message' : '게시글 단일 조회 성공',
-        "data": post_json_detail})
+    if request.method == "GET":
+        post = get_object_or_404(Post, pk=post_id) # post_id 에 해당하는 Post 데이터 가져오기
+    
+        post_json_detail = {
+            "id" : post.id,
+            "title" : post.title,
+            "content" : post.content,
+            "status" : post.status,
+            "writer" : post.writer.username
+        }
+        return JsonResponse({
+            "status" : 200,
+            'message' : '게시글 단일 조회 성공',
+            "data": post_json_detail})

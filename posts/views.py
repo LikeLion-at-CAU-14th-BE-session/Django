@@ -3,6 +3,7 @@ from django.http import JsonResponse # 추가
 from django.shortcuts import get_object_or_404 # 추가
 from django.views.decorators.http import require_http_methods
 from .models import *
+import json
 
 # Create your views here.
 
@@ -16,17 +17,263 @@ def hello_world(request):
 def index(request):
     return render(request, 'index.html')
 
-# Create your views here.
+# 게시글을 Post(Create), Get(Read) 하는 뷰 로직
+@require_http_methods(["POST", "GET"])   #함수 데코레이터, 특정 http method 만 허용합니다
+def post_list(request):
+
+    if request.method == "POST":
+
+        # request.body의 byte -> 문자열 -> python 딕셔너리
+        body = json.loads(request.body.decode('utf-8'))
+
+        # 프론트에게서 user id를 넘겨받는다고 가정.
+		# 외래키 필드의 경우, 객체 자체를 전달해줘야하기 때문에
+        # id를 기반으로 user 객체를 조회해서 가져옵니다 !
+        user_id = body.get('user')
+        user = get_object_or_404(User, pk=user_id)
+
+        # 새로운 데이터를 DB에 생성
+        new_post = Post.objects.create(
+            title = body['title'],
+            content = body['content'],
+            status = body['status'],
+            writer = user
+        )
+
+        # Json 형태 반환 데이터 생성
+        new_post_json = {
+            "id" : new_post.id,
+            "title" : new_post.title,
+            "content" : new_post.content,
+            "status" : new_post.status,
+            "writer" : new_post.writer.username
+        }
+
+        return JsonResponse({
+            'status' : 200,
+            'message' : '게시글 생성 성공',
+            'data' : new_post_json
+        })
+    
+    # 게시글 전체 조회
+    if request.method == "GET":
+        post_all = Post.objects.all()
+
+        # 각 데이터를 Json 형식으로 변환하여 리스트에 저장 (여러개의 게시글 내용을 담을 거라 리스트를 이용합니다)
+        post_all_json = []
+
+        for post in post_all:
+            post_json = {
+                "id" : post.id,
+                "title" : post.title,
+                "content" : post.content,
+                "status" : post.status,
+                "writer" : post.writer.username
+            }
+            post_all_json.append(post_json)
+
+        return JsonResponse({
+            'status' : 200,
+            'message' : '게시글 목록 조회 성공',
+            'data' : post_all_json
+        })
+
+# 게시글 단일조회(GET), 수정(PATCH), 삭제(DELETE) 로직
+@require_http_methods(["GET","PATCH","DELETE"])
+def post_detail(request, post_id):
+    
+    if request.method == "GET":
+        post = get_object_or_404(Post, pk=post_id) # post_id 에 해당하는 Post 데이터 가져오기
+    
+        post_detail_json = {
+            "id" : post.id,
+            "title" : post.title,
+            "content" : post.content,
+            "status" : post.status,
+            "writer" : post.writer.username
+        }
+        return JsonResponse({
+            "status" : 200,
+            'message' : '게시글 단일 조회 성공',
+            "data": post_detail_json})
+    
+    if request.method == "PATCH":
+        body = json.loads(request.body.decode('utf-8'))
+
+        post_update = get_object_or_404(Post, pk=post_id)
+
+        if 'title' in body:
+            post_update.title = body['title']
+        if 'content' in body:
+            post_update.content = body['content']
+        if 'status' in body:
+            post_update.status = body['status']
+        
+        post_update.save()
+
+        post_update_json = {
+            "id" : post_update.id,
+            "title" : post_update.title,
+            "content" : post_update.content,
+            "status" : post_update.status,
+            "writer" : post_update.writer.username
+        }
+
+        return JsonResponse({
+            'status': 200,
+            'message' : '게시글 수정 성공',
+            'data' : post_update_json
+        })
+    
+    if request.method == "DELETE":
+        post_delete = get_object_or_404(Post, pk=post_id)
+        post_delete.delete()
+
+        return JsonResponse({
+            'status' : 200,
+            'message' : '게시글 삭제 성공',
+            'data' : None
+        })
+
+#--------------카테고리--------------#
+# 카테고리 생성
+@require_http_methods(["POST"])
+def category_list(request):
+
+    if request.method == "POST":
+        body = json.loads(request.body.decode('utf-8'))
+
+        new_category = Category.objects.create(
+            title = body['title']
+        )
+
+        new_category_json = {
+            "id" : new_category.id,
+            "title" : new_category.title
+        }
+
+        return JsonResponse({
+            'status' : 200,
+            'message' : '카테고리 생성 성공',
+            'data' : new_category_json
+        })
+
+# 게시글 카테고리 추가(연결)
+@require_http_methods(["POST"])
+def categoryLink_list(request):
+
+    if request.method == "POST":
+        body = json.loads(request.body.decode('utf-8'))
+
+        post_id = body['post_id']
+        post = get_object_or_404(Post, pk=post_id)
+
+        category_id = body['category_id']
+        category = get_object_or_404(Category, pk=category_id)
+
+        new_categoryLink = CategoryLink.objects.create(
+            post = post,
+            category = category
+        )
+
+        new_categoryLink_json = {
+            "post" : new_categoryLink.post.title,
+            "category" : new_categoryLink.category.title
+        }
+
+        return JsonResponse({
+            'status' : 200,
+            'message' : '카테고리-게시글 연결 생성 성공',
+            'data' : new_categoryLink_json
+        })
+
+# 카테고리 별 게시글
 @require_http_methods(["GET"])
-def get_post_detail(reqeust, id):
-    post = get_object_or_404(Post, pk=id)
-    post_detail_json = {
-        "id" : post.id,
-        "title" : post.title,
-        "content" : post.content,
-        "status" : post.status,
-        "writer" : post.writer.username
-    }
+def posts_in_category(request, category_id):
+
+    if not category_id:
+        return JsonResponse({
+            "status": 400,
+            "message": "category_id 쿼리 파라미터가 필요합니다."
+        }, status=400)
+    
+    post_in_category_all = CategoryLink.objects.filter(category_id = category_id).order_by('created_at')
+
+    post_in_category_all_json = []
+    for post_in_category in post_in_category_all:
+        post_in_category_json = {
+            "post_id" : post_in_category.post.id,
+            "title" : post_in_category.post.title,
+            "content" : post_in_category.post.content
+        }
+        post_in_category_all_json.append(post_in_category_json)
+    
     return JsonResponse({
-        "status" : 200,
-        "data": post_detail_json})
+        'status' : 200,
+        'message' : '해당 카테고리 전체 게시글 조회 성공',
+        'data' : post_in_category_all_json
+    })
+
+
+    
+#----------------댓글----------------#
+@require_http_methods(["POST"])
+def comment_list(request):
+    
+    if request.method == "POST":
+
+        body = json.loads(request.body.decode('utf-8'))
+        user_id = body.get('user')
+        user = get_object_or_404(User, pk=user_id)
+
+        post_id = body.get('post')
+        post = get_object_or_404(Post, pk=post_id)
+
+        new_comment = Comment.objects.create(
+            post = post,
+            author_name = user.username,
+            content = body['content'],
+        )
+
+        new_comment_json = {
+            "id" : new_comment.id,
+            "post" : new_comment.post.id,
+            "author_name" : new_comment.author_name,
+            "content" : new_comment.content
+        }
+
+        return JsonResponse({
+            'status' : 200,
+            'message' : '댓글 생성 성공',
+            'data' : new_comment_json
+        })
+
+@require_http_methods(["GET"])
+def comments_in_posts(request,post_id):
+    
+    if request.method == "GET":
+
+        if not post_id:
+            return JsonResponse({
+                "status": 400,
+                "message": "post_id 쿼리 파라미터가 필요합니다."
+            }, status=400)
+
+        # 2. 필터링 후 댓글 조회
+        comment_all = Comment.objects.filter(post_id=post_id)
+
+        # 3. JSON 변환
+        comment_all_json = []
+        for comment in comment_all:
+            comment_json = {
+                "id" : comment.id,
+                "author": comment.author_name,
+                "content": comment.content,
+            }
+            comment_all_json.append(comment_json)
+
+        return JsonResponse({
+            'status': 200,
+            'message': '해당 게시글 전체 댓글 조회 성공',
+            'data': comment_all_json
+        })

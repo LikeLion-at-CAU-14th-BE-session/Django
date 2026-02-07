@@ -78,6 +78,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "config.middleware.RequestLoggingMiddleware",
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -160,3 +161,50 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+
+# 로깅
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+
+    "formatters": {
+        "verbose": {
+            "format": "{asctime} [{levelname}] {message}",
+            "style": "{",
+        },
+    },
+
+    "handlers": {
+        # 모든 요청 로그
+        "access_file": {
+            "level": "INFO",
+            "class": "logging.FileHandler",
+            "filename": BASE_DIR / "logs/access.log",
+            "formatter": "verbose",
+        },
+
+        # 에러 전용 로그
+        "error_file": {
+            "level": "WARNING",
+            "class": "logging.FileHandler",
+            "filename": BASE_DIR / "logs/errors.log",
+            "formatter": "verbose",
+        },
+    },
+
+    "loggers": {
+        # Django 요청 로그
+        "django.request": {
+            "handlers": ["access_file", "error_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+
+        # 전체 Django 로그
+        "django": {
+            "handlers": ["access_file", "error_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}

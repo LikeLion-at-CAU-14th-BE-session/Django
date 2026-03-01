@@ -40,3 +40,35 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Email already exists.")
         
         return input
+
+# 로그인용 시리얼라이저
+class AuthSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(required=True)
+    password = serializers.CharField(required=True)
+    
+    class Meta:
+        model = User
+
+        # 로그인은 username과 password만 필요
+        fields = ['username', 'password']
+
+    # 로그인 유효성 검사 함수
+    def validate(self, data):
+        username = data.get('username', None)
+        password = data.get('password', None)
+		    
+		# username으로 사용자 찾는 모델 함수
+        user = User.get_user_by_username(username=username)
+        
+        # 존재하는 회원인지 확인
+        if user is None:
+            raise serializers.ValidationError("User does not exist.")
+        else:
+			# 비밀번호 일치 여부 확인
+            if not user.check_password(password):
+                raise serializers.ValidationError("Wrong password.")
+        
+        # 딕셔너리로 변환
+        data['user'] = user
+
+        return data

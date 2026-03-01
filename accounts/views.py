@@ -1,10 +1,12 @@
 from django.shortcuts import render
+from django.contrib.auth import logout
+from .serializers import *
+from .models import *
 from rest_framework_simplejwt.serializers import RefreshToken
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .serializers import *
-from .models import *
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 
 # Create your views here.
 class RegisterView(APIView):
@@ -72,4 +74,11 @@ class AuthView(APIView):
         # 유효성 검사 실패 시 오류 반환
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
+# 로그아웃 담당 view
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated] # 너 로그인한 사용자 맞아? 를 검사하는 permission
+
+    def post(self, request):
+        logout(request)
+        return Response({"message": "logout success!"}, status=status.HTTP_200_OK)

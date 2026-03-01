@@ -5,6 +5,14 @@ from django.views.decorators.http import require_http_methods
 from .models import *
 import json
 
+### DRF 관련 import - APIView 사용
+from .serializers import PostSerializer, CommentSerializer
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.http import Http404
+
 # Create your views here.
 
 def hello_world(request):
@@ -16,6 +24,47 @@ def hello_world(request):
     
 def index(request):
     return render(request, 'index.html')
+
+### DFR API
+class PostList(APIView):
+    # 게시글 생성
+    def post(self, request, format=None):
+        serializer = PostSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    # 게시글 전체 조회 
+    def get(self, request, format=None):
+        posts = Post.objects.all()
+        serializer = PostSerializer(posts, many=True)
+        return Response(serializer.data)
+    
+class PostDetail(APIView):
+    def get(self, request, post_id):
+        post = get_object_or_404(Post, id=post_id)
+        serializer = PostSerializer(post)
+        return Response(serializer.data)
+    
+    def put(self, request, post_id):
+        post = get_object_or_404(Post, id=post_id)
+        serializer = PostSerializer(post, data=request.data)
+        if serializer.is_valid(): 
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, post_id):
+        post = get_object_or_404(Post, id=post_id)
+        post.delete()
+        return Response(
+            {
+                "message": "게시글이 성공적으로 삭제되었습니다.",
+                "post_id": post_id
+            },
+            status=status.HTTP_200_OK
+        )
 
 # 게시글을 Post(Create), Get(Read) 하는 뷰 로직
 @require_http_methods(["POST", "GET"])   #함수 데코레이터, 특정 http method 만 허용합니다
@@ -214,7 +263,35 @@ def posts_in_category(request, category_id):
         'data' : post_in_category_all_json
     })
 
+#----------------DRF-API-과제----------------#
+class CommentList(APIView):
+    def post(self, request, format=None):
+        post_id = request.data.get("post") # request.data에서 post_id를 가져오기
+        post = get_object_or_404(Post, id=post_id)
 
+        serializer = CommentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(post=post)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class CommentsInPosts(APIView):   
+    def get(self, request, post_id):
+        comments = Comment.objects.filter(post_id=post_id)
+        serializer = CommentSerializer(comments, many=True)
+        return Response(serializer.data)
+    
+class CommentDetail(APIView):
+    def delete(self, request, comment_id):
+        comments = get_object_or_404(Comment, id=comment_id)
+        comments.delete()
+        return Response(
+            {
+                "message": "댓글 성공적으로 삭제되었습니다.",
+                "comment_id": comment_id
+            },
+            status=status.HTTP_200_OK
+        )
     
 #----------------댓글----------------#
 @require_http_methods(["POST"])

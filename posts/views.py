@@ -1,17 +1,17 @@
 from django.shortcuts import render
-from django.http import JsonResponse # 추가 
+from django.http import JsonResponse, Http404 # 추가
 from django.shortcuts import get_object_or_404 # 추가
 from django.views.decorators.http import require_http_methods
 from .models import *
+from .serializers import PostSerializer, CommentSerializer ### DRF 관련 import - APIView 사용
+from config.permissions import *
 import json
 
-### DRF 관련 import - APIView 사용
-from .serializers import PostSerializer, CommentSerializer
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from django.http import Http404
+from rest_framework.permissions import IsAuthenticatedOrReadOnly # jwt 세션
 
 # Create your views here.
 
@@ -27,6 +27,8 @@ def index(request):
 
 ### DFR API
 class PostList(APIView):
+    permission_classes = [IsAvailableTime, IsOwnerOrReadOnly]
+
     # 게시글 생성
     def post(self, request, format=None):
         serializer = PostSerializer(data=request.data)
@@ -42,6 +44,8 @@ class PostList(APIView):
         return Response(serializer.data)
     
 class PostDetail(APIView):
+    permission_classes = [IsAvailableTime, IsOwnerOrReadOnly]
+
     def get(self, request, post_id):
         post = get_object_or_404(Post, id=post_id)
         serializer = PostSerializer(post)

@@ -2,10 +2,19 @@ from django.shortcuts import render
 from django.http import JsonResponse, Http404 # 추가
 from django.shortcuts import get_object_or_404 # 추가
 from django.views.decorators.http import require_http_methods
+from django.core.files.storage import default_storage # 추기 - S3 업로드 관련
+from django.conf import settings # 추가 - S3 업로드 관련
+import boto3 # 추가 - S3 업로드 관련
+from drf_yasg.utils import swagger_auto_schema # 추가 - Swagger UI 관련
+from drf_yasg import openapi # 추가 - Swagger UI 관련
+
 from .models import *
-from .serializers import PostSerializer, CommentSerializer ### DRF 관련 import - APIView 사용
+from .serializers import PostSerializer, CommentSerializer, ImageSerializer ### DRF 관련 import - APIView 사용
 from config.permissions import *
 import json
+import os # s3 과제
+import uuid # s3 과제
+from rest_framework.parsers import MultiPartParser, FormParser # s3 과제 - 이미지 업로드용 parser
 
 
 from rest_framework.views import APIView
@@ -30,6 +39,12 @@ class PostList(APIView):
     permission_classes = [IsAvailableTime, IsOwnerOrReadOnly]
 
     # 게시글 생성
+    @swagger_auto_schema(
+            operation_summary="게시글 생성",
+            operation_description="새로운 게시글을 생성합니다.",
+            request_body=PostSerializer,  # 요청 데이터의 스키마 정의
+            responses={201: PostSerializer, 400: "잘못된 요청"},  # 응답 데이터의 스키마 정의
+    )
     def post(self, request, format=None):
         serializer = PostSerializer(data=request.data)
         if serializer.is_valid():
@@ -38,6 +53,11 @@ class PostList(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     # 게시글 전체 조회 
+    @swagger_auto_schema(
+        operation_summary="게시글 목록 조회",
+        operation_description="모든 게시글을 조회합니다.",
+        responses={200: PostSerializer(many=True)}
+    )
     def get(self, request, format=None):
         posts = Post.objects.all()
         serializer = PostSerializer(posts, many=True)
@@ -46,11 +66,22 @@ class PostList(APIView):
 class PostDetail(APIView):
     permission_classes = [IsAvailableTime, IsOwnerOrReadOnly]
 
+    @swagger_auto_schema(
+        operation_summary="게시글 단일 조회",
+        operation_description="post_id에 해당하는 게시글 1개를 조회합니다.",
+        responses={200: PostSerializer, 404: "게시글을 찾을 수 없음"}
+    ) # 스웨거 과제
     def get(self, request, post_id):
         post = get_object_or_404(Post, id=post_id)
         serializer = PostSerializer(post)
         return Response(serializer.data)
     
+    @swagger_auto_schema(
+        operation_summary="게시글 수정",
+        operation_description="post_id에 해당하는 게시글을 수정합니다.",
+        request_body=PostSerializer,
+        responses={200: PostSerializer, 400: "잘못된 요청", 404: "게시글을 찾을 수 없음"}
+    ) # 스웨거 과제
     def put(self, request, post_id):
         post = get_object_or_404(Post, id=post_id)
         serializer = PostSerializer(post, data=request.data)
@@ -59,6 +90,11 @@ class PostDetail(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(
+        operation_summary="게시글 삭제",
+        operation_description="post_id에 해당하는 게시글을 삭제합니다.",
+        responses={200: "게시글이 성공적으로 삭제되었습니다.", 404: "게시글을 찾을 수 없음"}
+    ) # 스웨거 과제
     def delete(self, request, post_id):
         post = get_object_or_404(Post, id=post_id)
         post.delete()
@@ -358,3 +394,66 @@ def comments_in_posts(request,post_id):
             'message': '해당 게시글 전체 댓글 조회 성공',
             'data': comment_all_json
         })
+    
+class ImageUploadView(APIView):
+    parser_classes = [MultiPartParser, FormParser]  # s3 과제 - 이미지 업로드를 위한 parser 설정
+    
+    @swagger_auto_schema(
+        operation_summary="이미지 업로드",
+        operation_description="이미지 파일을 S3에 업로드하고 업로드된 이미지 URL을 반환합니다.",
+        manual_parameters=[
+            openapi.Parameter(
+                name='image',
+                in_=openapi.IN_FORM,
+                type=openapi.TYPE_FILE,
+                required=True,
+                description='업로드할 이미지 파일'
+            )
+        ],
+        consumes=['multipart/form-data'],
+        responses={
+            201: ImageSerializer,
+            400: "잘못된 요청",
+            500: "S3 업로드 실패"
+        }
+    ) # 스웨거 과제 - 이미지 업로드 API 문서화
+    def post(self, request):
+        if 'image' not in request.FILES:
+            return Response({"error": "No image file"}, status=status.HTTP_400_BAD_REQUEST)
+
+        image_file = request.FILES['image']
+
+        s3_client = boto3.client(
+            "s3",
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_REGION
+        )
+
+        # s3과제 - UUID 사용하여 파일 이름을 고유하게 생성
+        original_filename = image_file.name
+        ext = os.path.splitext(original_filename)[1]
+        unique_filename = f"{uuid.uuid4().hex}{ext}"
+
+        # S3에 파일 저장
+        file_path = f"uploads/{unique_filename}"
+        # S3에 파일 업로드
+        try:
+            s3_client.put_object(
+                Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+                Key=file_path,
+                Body=image_file.read(),
+                ContentType=image_file.content_type,
+            )
+        except Exception as e:
+            return Response({"error": f"S3 Upload Failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # 업로드된 파일의 URL 생성
+        image_url = f"https://{settings.AWS_S3_CUSTOM_DOMAIN}/{file_path}"
+
+        # DB에 저장
+        image_instance = Image.objects.create(image_url=image_url)
+        serializer = ImageSerializer(image_instance)
+
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

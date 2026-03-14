@@ -1,7 +1,7 @@
 ### Model Serializer case
 
 from rest_framework import serializers
-from .models import Post, Comment
+from .models import Post, Comment, Image
 
 class PostSerializer(serializers.ModelSerializer):
 
@@ -15,3 +15,9 @@ class CommentSerializer(serializers.ModelSerializer):
     model = Comment
     fields = "__all__"
     read_only_fields = ['id', 'created_at'] # 클라이언트 수정 불가 필드
+
+# 이미지 업로드용 Serializer
+class ImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Image
+        fields = "__all__"

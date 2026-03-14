@@ -20,6 +20,8 @@ urlpatterns = [
     path('<int:post_id>/comment/', CommentsInPosts.as_view()), # DRF 과제 - post Comment 조회
     path('comment/<int:comment_id>/', CommentDetail.as_view()), # DRF 과제 - comment 삭제
 
-    path('category/<int:category_id>/', posts_in_category, name = "posts_in_category") # category 별 post 조회
+    path('category/<int:category_id>/', posts_in_category, name = "posts_in_category"), # category 별 post 조회
+
+    path('upload/', ImageUploadView.as_view(), name='image_upload') # 이미지 업로드
 
 ]
